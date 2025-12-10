@@ -1,0 +1,68 @@
+/* ===========================
+   InlineSummary - Styles
+   =========================== */
+
+/* Container Root */
+.ils_messages_container_root {
+	margin: 4px 0;
+}
+
+/* Container Header */
+.ils_msg_container_header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	cursor: pointer;
+	padding: 3px 3px;
+	border-radius: 5px;
+	border: 1px solid;
+	transition: background-color 0.2s ease;
+}
+
+.ils_msg_container_header:hover {
+	opacity: 0.9;
+}
+
+/* Header Label */
+.ils_msg_container_header {
+	font-size: 0.85rem;
+	font-weight: 600;
+}
+
+/* Original Message */
+.ils_original_message {
+	border-radius: 5px;
+	padding: 5px;
+	margin: 3px 0;
+}
+
+/* Message Header Row */
+.ils_original_message_header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 6px;
+}
+
+/* Loading Spinner */
+.ils_loading_spinner {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: 20px;
+}
+
+.ils_loading_spinner i {
+	font-size: 24px;
+	animation: spin 1s linear infinite;
+	color: #888;
+}
+
+@keyframes spin {
+	0% {
+		transform: rotate(0deg);
+	}
+	100% {
+		transform: rotate(360deg);
+	}
+}
