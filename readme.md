@@ -1,6 +1,3 @@
-# Warning
-This repo is public, but extension is still in testing, so if you somehow found this... use it at your own risk.
-
 # InLine Summaries — a SillyTavern Extension
 
 ## AI Disclaimer
