@@ -800,7 +800,11 @@ function HandleMessagesHeaderClick(containerHeaderDiv)
 function OnDocumentClick(e)
 {
 	// Header Buttons - find the actual button element first
-	const headerBtn = e.target.closest(".mes_button");
+	// First check if the target itself is a button, otherwise search upwards
+	const headerBtn = e.target.classList.contains("mes_button") 
+		? e.target 
+		: e.target.closest(".mes_button");
+	
 	if (headerBtn)
 	{
 		// Check if this button is one of our header buttons

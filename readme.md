@@ -56,6 +56,9 @@ This specific style hides the Message Actions buttons from older messages, which
 
 ## Changelog
 
+#### v1.0.4
+Improved click handler precision for "Re-Summarise (AI)" button to more reliably identify the clicked button element.
+
 #### v1.0.3
 Fixed bug where clicking "Re-Summarise (AI)" on one summary could regenerate a different summary.
 Fixed an issue where global click handlers could be installed multiple times after certain reload flows.
