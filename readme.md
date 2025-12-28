@@ -57,7 +57,9 @@ This specific style hides the Message Actions buttons from older messages, which
 ## Changelog
 
 #### v1.0.3
-Fixed an issue where, after certain reload flows, global click handlers could be installed multiple times, causing actions like **Re-Summarise (AI)** to fire more than once per click.
+Fixed bug where clicking "Re-Summarise (AI)" on one summary could regenerate a different summary.
+Fixed an issue where global click handlers could be installed multiple times after certain reload flows.
+Added per-message regeneration lock to prevent duplicate simultaneous regenerations of the same summary.
 
 #### v1.0.2
 Added end prompt option, which is inserted after the content to summarise. (For models that have options like `/nothink`)

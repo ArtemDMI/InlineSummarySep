@@ -482,23 +482,38 @@ const kHeaderButtons = [
 
 		async OnClick(msgIndex)
 		{
-			const summaryMsg = GetMessageByIndex(msgIndex);
-			if (!HasOriginalMessages(summaryMsg))
+			// Check if this message is already being regenerated
+			if (!gIlsRuntime.regeneratingMessages)
+				gIlsRuntime.regeneratingMessages = new Set();
+			
+			if (gIlsRuntime.regeneratingMessages.has(msgIndex))
 				return;
+			
+			gIlsRuntime.regeneratingMessages.add(msgIndex);
+			
+			try
+			{
+				const summaryMsg = GetMessageByIndex(msgIndex);
+				if (!HasOriginalMessages(summaryMsg))
+					return;
 
-			const summaryPrompt = MakeSummaryPrompt(msgIndex, summaryMsg.extra[kExtraDataKey][kOriginalMessagesKey]);
+				const summaryPrompt = MakeSummaryPrompt(msgIndex, summaryMsg.extra[kExtraDataKey][kOriginalMessagesKey]);
+				const responsePromise = gST.generateRaw({ prompt: summaryPrompt });
 
-			const responsePromise = gST.generateRaw({ prompt: summaryPrompt });
+				// Now await for the LLM response to complete
+				const response = await responsePromise;
 
-			// Now await for the LLM response to complete
-			const response = await responsePromise;
+				// Update the summary message in the backend with the generated response
+				summaryMsg.mes = response;
 
-			// Update the summary message in the backend with the generated response
-			summaryMsg.mes = response;
-
-			// Save and reload to reflect the final response in the UI
-			await gST.saveChat();
-			await gST.reloadCurrentChat();
+				// Save and reload to reflect the final response in the UI
+				await gST.saveChat();
+				await gST.reloadCurrentChat();
+			}
+			finally
+			{
+				gIlsRuntime.regeneratingMessages.delete(msgIndex);
+			}
 		}
 	},
 ];
@@ -784,21 +799,26 @@ function HandleMessagesHeaderClick(containerHeaderDiv)
 // =========================
 function OnDocumentClick(e)
 {
-	// Header Buttons
-	for (const def of kHeaderButtons)
+	// Header Buttons - find the actual button element first
+	const headerBtn = e.target.closest(".mes_button");
+	if (headerBtn)
 	{
-		const btn = e.target.closest("." + def.className);
-		if (btn)
+		// Check if this button is one of our header buttons
+		for (const def of kHeaderButtons)
 		{
-			const msgIndex = Number(btn.getAttribute("mesid"));
-			if (!isNaN(msgIndex))
+			if (headerBtn.classList.contains(def.className))
 			{
-				// Prevent duplicate handler invocations (including if our handler was registered twice).
-				e.preventDefault();
-				e.stopImmediatePropagation();
-				e.stopPropagation();
-				def.OnClick(msgIndex);
-				return;
+				const msgIndex = Number(headerBtn.getAttribute("mesid"));
+				if (!isNaN(msgIndex))
+				{
+					// Prevent duplicate handler invocations
+					e.preventDefault();
+					e.stopImmediatePropagation();
+					e.stopPropagation();
+					
+					def.OnClick(msgIndex);
+					return;
+				}
 			}
 		}
 	}
