@@ -10,6 +10,27 @@ const kDefaultsFile = `${kExtensionFolderPath}/defaults.json`;
 const kExtraDataKey = "ILS_Data";
 const kOriginalMessagesKey = "OriginalMessages";
 
+// NOTE:
+// SillyTavern can re-load extension scripts in some flows (e.g. reload UI / hot reload).
+// If we register global event handlers multiple times, a single click can trigger multiple
+// generations. Keep a single global runtime state and install handlers only once.
+const kIlsGlobalKey = "__ILS_INLINE_SUMMARY_RUNTIME__";
+const gIlsRuntime = (() =>
+{
+	try
+	{
+		const root = globalThis;
+		if (!root[kIlsGlobalKey])
+			root[kIlsGlobalKey] = {};
+		return root[kIlsGlobalKey];
+	}
+	catch
+	{
+		// Fallback if globalThis is unavailable for some reason
+		return {};
+	}
+})();
+
 const kMsgBtnColours = {
 	default: null,
 	selected: "#4CAF50",
@@ -761,7 +782,7 @@ function HandleMessagesHeaderClick(containerHeaderDiv)
 // =========================
 // Event Handlers
 // =========================
-document.addEventListener("click", e =>
+function OnDocumentClick(e)
 {
 	// Header Buttons
 	for (const def of kHeaderButtons)
@@ -772,6 +793,10 @@ document.addEventListener("click", e =>
 			const msgIndex = Number(btn.getAttribute("mesid"));
 			if (!isNaN(msgIndex))
 			{
+				// Prevent duplicate handler invocations (including if our handler was registered twice).
+				e.preventDefault();
+				e.stopImmediatePropagation();
+				e.stopPropagation();
 				def.OnClick(msgIndex);
 				return;
 			}
@@ -782,6 +807,10 @@ document.addEventListener("click", e =>
 	const containerHeaderDiv = e.target.closest(".ils_msg_container_header");
 	if (containerHeaderDiv)
 	{
+		// Don't let other potential duplicate handlers toggle multiple containers.
+		e.preventDefault();
+		e.stopImmediatePropagation();
+		e.stopPropagation();
 		HandleMessagesHeaderClick(containerHeaderDiv);
 		return;
 	}
@@ -803,11 +832,26 @@ document.addEventListener("click", e =>
 	{
 		if (btn.classList.contains(def.className))
 		{
+			// Prevent duplicate execution if handlers are accidentally installed more than once.
+			e.preventDefault();
+			e.stopImmediatePropagation();
+			e.stopPropagation();
 			def.OnClick(messageId);
 			break;
 		}
 	}
-});
+}
+
+function EnsureGlobalHandlersInstalled()
+{
+	// Install document click handler only once.
+	if (!gIlsRuntime.__clickHandlerInstalled)
+	{
+		// Use bubbling phase (default) so SillyTavern's own handlers still work as expected.
+		document.addEventListener("click", OnDocumentClick);
+		gIlsRuntime.__clickHandlerInstalled = true;
+	}
+}
 
 function OnChatChanged(data)
 {
@@ -987,6 +1031,8 @@ async function OnSettingResetToDefault()
 // =========================
 jQuery(async () =>
 {
+	EnsureGlobalHandlersInstalled();
+
 	gSettings = await LoadSettings();
 
 	// Setup Settings Menu
@@ -1040,6 +1086,12 @@ jQuery(async () =>
 	const chatContainer = document.getElementById("chat");
 	if (chatContainer)
 	{
+		// If we previously installed an observer (script reload), disconnect it first.
+		if (gIlsRuntime.__chatObserver && typeof gIlsRuntime.__chatObserver.disconnect === "function")
+		{
+			try { gIlsRuntime.__chatObserver.disconnect(); } catch { /* ignore */ }
+		}
+
 		const observer = new MutationObserver(mutations =>
 		{
 			for (const m of mutations)
@@ -1057,6 +1109,7 @@ jQuery(async () =>
 		});
 
 		observer.observe(chatContainer, { childList: true, subtree: true });
+		gIlsRuntime.__chatObserver = observer;
 	}
 	else
 	{
@@ -1064,7 +1117,12 @@ jQuery(async () =>
 	}
 
 	// Other Events
-	gST.eventSource.on(gST.eventTypes.CHAT_CHANGED, OnChatChanged);
+	// Avoid duplicate event subscription across script reloads.
+	if (!gIlsRuntime.__chatChangedSubscribed)
+	{
+		gST.eventSource.on(gST.eventTypes.CHAT_CHANGED, OnChatChanged);
+		gIlsRuntime.__chatChangedSubscribed = true;
+	}
 
 	console.log("[ILS] Inline Summary - Ready");
 });
